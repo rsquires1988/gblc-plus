@@ -5,24 +5,41 @@ Guild Bank List Creator Plus creates copy-pastable, Discord-postable, lists of i
 Items with suffixes ("X of the Y") will have their exact stats included in the mouseover tooltip of the Wowhead link after posting to Discord. (New in GBLC Plus 0.6)
 
 
+
 TO GENERATE THE LIST, just type /gblc. I recommend making a macro and putting it somewhere on your bank character's action bars.
 
 Command line options:
+
 /gblc help
+
 /gblc status
+
 /gblc limit (number)
+
 /gblc nolimit
+
 /gblc links true|false
+
 /gblc stack true|false
+
 /gblc csv true|false
+
 /gblc categorize true|false (New in GBLC Plus 0.6)
+
 /gblc sort rarity|alpha (New in GBLC Plus 0.6)
+
 /gblc exclude item name (count)
+
 /gblc exclude id itemID (count)
+
 /gblc include item name (count)
+
 /gblc include id itemID (count)
+
 /gblc clearitem item name
+
 /gblc clearitem id itemID
+
 /gblc clearlist
 
 
