@@ -16,4 +16,5 @@ libs\AceDB-3.0\AceDB-3.0.xml
 #@end-no-lib-strip@
 
 frame.xml
+#main.lua
 devel.lua

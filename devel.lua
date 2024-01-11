@@ -889,6 +889,14 @@ function GBLC:OnInitialize()
 		StackItems = false
 	end
 
+	if (sortMethod == nil) then
+        sortMethod = "byRarity"
+    end
+
+    if (categorize == nil) then
+        categorize = true
+    end
+
 	if (UseCSV == nil) then
 		UseCSV = false
 	end
@@ -896,25 +904,6 @@ function GBLC:OnInitialize()
 	if (ExcludeList == nil) then
 		ExcludeList = {}
 	end
-
--- 	--Debug
---         -- Function to get and print item types and subtypes
---     function PrintItemTypesAndSubtypes()
---         local itemTypes = { GetAuctionItemClasses() }
---
---         for i, itemType in ipairs(itemTypes) do
---             print("Item Type:", itemType)
---
---             local itemSubTypes = { GetAuctionItemSubClasses(i) }
---             for j, itemSubType in ipairs(itemSubTypes) do
---                 print("  SubType:", itemSubType)
---             end
---         end
---     end
---
---     -- Call the function to print types and subtypes
---     PrintItemTypesAndSubtypes()
-	
 end
 
 function GBLC:BoolText(input)
@@ -925,7 +914,7 @@ function GBLC:BoolText(input)
 
 	local booltext = 'False'
 
-	if (input) then
+	if (input) then    local sortMethod = "byRarity"  -- Default sorting method
 		booltext = 'True'
 	end
 	
@@ -990,6 +979,62 @@ function GBLC:GetSuffixStats(suffix, suffixID)
     end
 end
 
+local function sortByRarityMinLevelSuffixName(a, b)
+    if a.rarityNum ~= b.rarityNum then
+        return a.rarityNum > b.rarityNum
+    elseif a.minLevel ~= b.minLevel then
+        return a.minLevel > b.minLevel
+    elseif a.suffixName ~= b.suffixName then
+        if a.suffixName == nil then return true end
+        if b.suffixName == nil then return false end
+        return a.suffixName < b.suffixName
+    else
+        return a.name < b.name
+    end
+end
+
+-- Define sorting functions
+GBLC.sortFunctions = {
+    alphabetical = function(a, b) return a.name < b.name end,
+    byRarity = sortByRarityMinLevelSuffixName
+}
+
+
+function GBLC:SortAndCategorizeItems(bagItems, sortMethod, categorize)
+    local categories = {
+        Armor = {},
+        Consumables = {},
+        Recipes = {},
+        TradeGoods = {},
+        Weapons = {},
+        Other = {} -- itemType == Container, Gem, Key, Miscellaneous, Money, Reagent, Projectile, Quest, Quiver,
+    }
+
+    -- Assign items to categories TODO Localize
+    for i, item in ipairs(bagItems) do
+        if item.iType == "Armor" then
+            table.insert(categories.Armor, item)
+        elseif item.iType == "Consumable" then
+            table.insert(categories.Consumables, item)
+        elseif item.iType == "Recipe" then
+            table.insert(categories.Recipes, item)
+        elseif item.iType == "Trade Goods" or item.iType == "Tradeskill" then
+            table.insert(categories.TradeGoods, item)
+        elseif item.iType == "Weapon" then
+            table.insert(categories.Weapons, item)
+        else
+            table.insert(categories.Other, item)
+        end
+    end
+
+    -- Apply sorting
+    for _, items in pairs(categories) do
+        table.sort(items, GBLC.sortFunctions[sortMethod])
+    end
+
+    return categories
+end
+
 function GBLC:HandleChatCommand(input)
 
 	---------------------------------------
@@ -1025,6 +1070,14 @@ function GBLC:HandleChatCommand(input)
 		GBLC:AddLine('/gblc stack false -- Shows individual items')
 		GBLC:AddLine('/gblc csv true    -- Output in CSV format')
 		GBLC:AddLine('/gblc csv false   -- Output in original format')
+		GBLC:AddLine('/gblc categorize  true')
+		GBLC:AddLine('                  -- Separates items by category')
+		GBLC:AddLine('/gblc categorize false')
+		GBLC:AddLine('                  -- Items will not be categorized')
+		GBLC:AddLine('/gblc sort alpha  -- Sorts items alphabetically')
+		GBLC:AddLine('/gblc sort rarity -- Sorts items by rarity, then by')
+		GBLC:AddLine('                  -- minimum level, then by suffix,')
+		GBLC:AddLine('                  -- and finally, alphabetically.')
 		GBLC:AddLine('/gblc exclude item name (count)')
 		GBLC:AddLine('                  -- Excludes (count) number of items')
 		GBLC:AddLine('                  -- from the list. If no number is')
@@ -1091,6 +1144,37 @@ function GBLC:HandleChatCommand(input)
 		gotcommands = true
 	end
 
+    -- GBLC Plus addition
+    ---------------------------------------
+	-- Enable or disable categorization
+	---------------------------------------
+    if (string.match(lcinput, "categorize true")) then
+		GBLC:Print('Categorizing by item type on.')
+		categorize = true
+		gotcommands = true
+	end
+
+    if (string.match(lcinput, "categorize false")) then
+		GBLC:Print('Categorizing by item type off.')
+		categorize = false
+		gotcommands = true
+	end
+
+	-- GBLC Plus addition
+    ---------------------------------------
+	-- Choose sorting style
+	---------------------------------------
+    if (string.match(lcinput, "sort alpha")) then
+        GBLC:Print('Sorting alphabetically.')
+        sortMethod = "alphabetical"
+        gotcommands = true
+    end
+    if (string.match(lcinput, "sort rarity")) then
+        GBLC:Print('Sorting by rarity, then min level, suffix, and name.')
+        sortMethod = "byRarity"
+        gotcommands = true
+    end
+
 	---------------------------------------
 	-- Display status
 	---------------------------------------
@@ -1102,6 +1186,9 @@ function GBLC:HandleChatCommand(input)
 		GBLC:AddLine('Character limit: ' .. ListLimiter)
 		GBLC:AddLine('Show Wowhead links: ' .. GBLC:BoolText(ShowLinks))
 		GBLC:AddLine('Combine items to stacks: ' .. GBLC:BoolText(StackItems))
+		GBLC:AddLine('Categorize output: ' .. GBLC:BoolText(categorize))
+        GBLC:AddLine('Sort: ' .. sortMethod)
+
 		if (not UseCSV) then
 			GBLC:AddLine('Output CSV: ' .. GBLC:BoolText(UseCSV))
 		else
@@ -1310,84 +1397,91 @@ function GBLC:HandleChatCommand(input)
 	-- Generate list
 	---------------------------------------
 
-	if (not gotcommands) then
-		local bags = GBLC:GetBags()
-		local bagItems = GBLC:GetBagItems()
-		local itemlistsort = {}
-		local wowheadlink = ''
-		local copper = GetMoney()
-		local moneystring = (("%dg %ds %dc"):format(copper / 100 / 100, (copper / 100) % 100, copper % 100));
-		local gametimehours, gametimeminutes = GetGameTime()
-		local texthours = string.format("%02d", gametimehours)
-		local textminutes = string.format("%02d", gametimeminutes)
+    if (not gotcommands) then
+        local bags = GBLC:GetBags()
+        local bagItems = GBLC:GetBagItems()
+        local exportLength = 0
+        local wowheadlink = ''
+        local copper = GetMoney()
+        local moneystring = (("%dg %ds %dc"):format(copper / 100 / 100, (copper / 100) % 100, copper % 100))
+        local gametimehours, gametimeminutes = GetGameTime()
+        local texthours = string.format("%02d", gametimehours)
+        local textminutes = string.format("%02d", gametimeminutes)
 
-		---------------------------------------
-		-- Generate output normal or CSV format 
-		-- depending on user settings
-		---------------------------------------
+        GBLC:ClearFrameText()
 
-		GBLC:ClearFrameText()
+        if not UseCSV then
+            local metadataLines = 'Bank list updated on ' .. date("%m/%d/%Y ") .. texthours .. ':' .. textminutes .. ' server time\nCharacter: ' .. UnitName('player') .. '\nGold: ' .. moneystring .. '\n'
+            GBLC:AddLine(metadataLines)
+            exportLength = exportLength + string.len(metadataLines) + 1
+        else
+            GBLC:AddLine(date("%m/%d/%Y") .. ',' .. texthours .. ':' .. textminutes .. ',' .. UnitName('player') .. ',' .. moneystring)
+        end
 
-        -- Changed datetime formatting to American style, TODO: add formatting options
-		if (not UseCSV) then
-			GBLC:AddLine('Bank list updated on ' .. date("%m/%d/%Y ") .. texthours .. ':' .. textminutes .. ' server time\nCharacter: ' .. UnitName('player') .. '\nGold: ' .. moneystring .. '\n')
-		else
-			GBLC:AddLine(date("%m/%d/%Y") .. ',' .. texthours .. ':' .. textminutes .. ',' .. UnitName('player') .. ',' .. moneystring)
-		end
-		
-		local exportLength = string.len(FrameText)
-		local antii = 0
+        local categoryDisplayName = {
+            Equipment = "Equipment",
+            Consumables = "Consumables",
+            Recipes = "Recipes",
+            TradeGoods = "Trade Goods",
+            Weapons = "Weapons",
+            Other = "Other"
+        }
 
-		for i=1, #bagItems do
-		
-			local finalCount = 0
-			
-			local stats = self:GetSuffixStats(bagItems[i].suffixName, tonumber(bagItems[i].suffix))
-			wowheadlink = GBLC:WowheadLink(bagItems[i].itemID)
-			
-			if (ExcludeList[bagItems[i].itemID] == nil) then
-				finalCount = bagItems[i].count
-			else
-				finalCount = bagItems[i].count - ExcludeList[bagItems[i].itemID]			
-			end
+        local categoryOrder = {"Weapons", "Armor", "TradeGoods", "Recipes", "Consumables", "Other"}
 
-		---------------------------------------
-		-- Add item to list if finalCount is 
-		-- larger than zero. In case of nothing
-		-- to add, we need to backtrack a step
-		-- on the next time we're adding stuff
-		---------------------------------------
+        if categorize then
+            local sortedCategorizedItems = GBLC:SortAndCategorizeItems(bagItems, sortMethod, categorize)
+            for _, category in ipairs(categoryOrder) do
+                local items = sortedCategorizedItems[category]
+                if items then
+                    local categoryHR = categoryDisplayName[category] or category
+                    if not UseCSV then
+                        local categoryLine = (categoryHR == "Weapons" and "" or "\n") .. categoryHR .. ":"
+                        GBLC:AddLine(categoryLine)
+                        exportLength = exportLength + string.len(categoryLine) + 1
+                    end
+                    for _, item in ipairs(items) do
+                        local finalCount = ExcludeList[item.itemID] and item.count - ExcludeList[item.itemID] or item.count
 
-			if not UseCSV then
-				if finalCount > 0 then
-                    local statsString = stats and stats ~= "" and ' "' .. stats .. '"' or ''
-                    itemlistsort[(i-antii)] = '[' .. bagItems[i].name .. '](' .. wowheadlink .. statsString .. ') (' .. finalCount .. ') - ' .. bagItems[i].minLevel .. ' ' .. bagItems[i].rarity .. ' ' .. bagItems[i].subType .. ' ' .. bagItems[i].equipLoc
+                        local stats = self:GetSuffixStats(item.suffixName, tonumber(item.suffix))
+                        wowheadlink = GBLC:WowheadLink(item.itemID)
 
--- 					itemlistsort[(i-antii)] = '[' .. bagItems[i].name .. '](' .. wowheadlink .. ' "' .. stats .. '"' .. ') (' .. finalCount .. ') - ' .. bagItems[i].minLevel .. ' ' .. bagItems[i].rarity .. ' ' .. bagItems[i].subType .. ' ' .. bagItems[i].equipLoc
-				end
-			else
-				if finalCount > 0 then
-					itemlistsort[(i-antii)] = bagItems[i].itemName .. ',' .. finalCount .. ',' .. wowheadlink
-				end
-			end
+                        local statsString = stats and stats ~= "" and ' "' .. stats .. '"' or ''
+                        local itemLine = '[' .. item.name .. '](' .. wowheadlink .. statsString .. ') (' .. finalCount .. ') - ' .. item.minLevel .. ' ' .. item.rarity .. ' ' .. item.subType .. (item.equipLoc ~= '' and ' ' or '') .. item.equipLoc
+                        if UseCSV then
+                            itemLine = item.name .. ',' .. finalCount .. ',' .. wowheadlink .. ',' .. item.minLevel .. ',' .. item.rarity .. ',' .. item.subType .. ',' .. item.equipLoc
+                        end
+                        if exportLength + string.len(itemLine) > ListLimiter and not UseCSV then
+                            print('exportLength pre-newline: ' .. exportLength .. ', exportLength post-newline: ' .. exportLength + string.len(itemLine))
+                            GBLC:AddLine('--LIST CONTINUED--')
+--                             exportLength = string.len('--LIST CONTINUED--')
+                            exportLength = 0
+                        end
+                        GBLC:AddLine(itemLine)
+                        exportLength = exportLength + string.len(itemLine) + 1
+                    end
+                end
+            end
+        else
+            table.sort(bagItems, GBLC.sortFunctions[sortMethod])
+            for _, item in ipairs(bagItems) do
+                local stats = self:GetSuffixStats(item.suffixName, tonumber(item.suffix))
+                wowheadlink = GBLC:WowheadLink(item.itemID)
 
-			if finalCount <= 0 then
-				antii = antii + 1
-			end
-		end
-
-		table.sort(itemlistsort);
-
-		for i=1, #itemlistsort do
-			if ((ListLimiter > 0) and (not UseCSV)) then
-				if ((exportLength + string.len(itemlistsort[i])) > ListLimiter) then
-					GBLC:AddLine('\nList continued')
-					exportLength = 0
-				end
-			end
-			GBLC:AddLine(itemlistsort[i])
-			exportLength = exportLength + string.len(itemlistsort[i])
-		end
+                local statsString = item.stats and item.stats ~= "" and ' "' .. item.stats .. '"' or ''
+                local itemLine = '[' .. item.name .. '](' .. wowheadlink .. statsString .. ') (' .. finalCount .. ') - ' .. item.minLevel .. ' ' .. item.rarity .. ' ' .. item.subType .. (item.equipLoc ~= '' and ' ' or '') .. item.equipLoc
+                if UseCSV then
+                    itemLine = item.name .. ',' .. finalCount .. ',' .. wowheadlink .. ',' .. item.minLevel .. ',' .. item.rarity .. ',' .. item.subType .. ',' .. item.equipLoc
+                end
+                GBLC:AddLine(itemLine)
+                exportLength = exportLength + string.len(itemLine) + 1
+                if exportLength > ListLimiter and not UseCSV then
+                    GBLC:AddLine('--LIST CONTINUED--')
+--                     exportLength = string.len('--LIST CONTINUED--')
+                    exportLength = 0
+                end
+            end
+        end
 
 		local enumber = 0
 		for eitemID, ecount in pairs(ExcludeList) do
@@ -1423,7 +1517,7 @@ function GBLC:HandleChatCommand(input)
 			
 				if ((ListLimiter > 0) and (not UseCSV)) then
 					if ((exportLength + string.len(excludeTable[i])) > ListLimiter) then
-						GBLC:AddLine('\nList continued')
+						GBLC:AddLine('--LIST CONTINUED--')
 						exportLength = 0
 					end
 				end
@@ -1566,7 +1660,7 @@ function GBLC:IncludeList(eitemID, ecount, etrash)
 	return true
 end
 
--- Helper function to get human-readable rarity
+-- GBLC Plus Addition: Helper functions to get human-readable rarity and slot
 function GBLC:getReadableRarity(rarity)
     return rarityLookup[rarity] or ""
 end
@@ -1597,7 +1691,7 @@ end
 function GBLC:GetBagItems()
     local bagItems = {}
 
-    for container = -1, 12 do
+    for container = -1, NUM_BAG_SLOTS + NUM_BANKBAGSLOTS do
         local numSlots = C_Container.GetContainerNumSlots(container)
 
         for slot = 1, numSlots do
@@ -1605,7 +1699,7 @@ function GBLC:GetBagItems()
 
             if itemLink then
                 local itemName, itemID, itemRarity, _, itemMinLevel, itemType, itemSubType, _, itemEquipLoc = GetItemInfo(itemLink)
-                local count = select(2, C_Container.GetContainerItemInfo(container, slot)) or 1
+                local slotCount = select(2, C_Container.GetContainerItemInfo(container, slot)) or 1
 
                 local isStackable = stackableLookup[itemType] and (type(stackableLookup[itemType]) ~= "table" or stackableLookup[itemType][itemSubType])
 
@@ -1618,20 +1712,21 @@ function GBLC:GetBagItems()
                     for stackitem = 1, #bagItems do
                         if bagItems[stackitem].itemID == Id then
                             if isStackable then
-                                -- Stackable items (like materials) are combined across all bags
-                                count = GetItemCount(Id)
-                                bagItems[stackitem].count = count
+                                -- For stackable items, update count to total count across all bags
+                                bagItems[stackitem].count = GetItemCount(Id, true)
                                 stacked = true
                                 break
                             elseif bagItems[stackitem].suffix == Suffix then
-                                -- Non-stackable items with the same suffix are combined
-                                bagItems[stackitem].count = bagItems[stackitem].count + count
+                                -- For non-stackable items with the same suffix, combine counts
+                                bagItems[stackitem].count = bagItems[stackitem].count + slotCount
                                 stacked = true
                                 break
                             end
                         end
                     end
                 end
+
+--                 print(itemLink .. ' - Count: ' .. GetItemCount(Id, true) .. ', slotCount: ' .. slotCount .. ', isStackable: ' .. (isStackable and 'true' or 'false'))
 
                 if not stacked then
                     bagItems[#bagItems + 1] = {
@@ -1640,12 +1735,13 @@ function GBLC:GetBagItems()
                         suffix = Suffix,
                         suffixName = suffixName,
                         itemID = Id,
+                        rarityNum = itemRarity,
                         rarity = GBLC:getReadableRarity(itemRarity),
                         minLevel = itemMinLevel,
                         iType = itemType,
                         subType = itemSubType,
                         equipLoc = GBLC:getReadableSlot(itemEquipLoc),
-                        count = isStackable and GetItemCount(Id) or count
+                        count = isStackable and GetItemCount(Id, true) or slotCount
                     }
                 end
             end
