@@ -878,7 +878,7 @@ function GBLC:OnInitialize()
 	GBLC:RegisterChatCommand('gblc', 'HandleChatCommand');
 
 	if (ListLimiter == nil) then
-		ListLimiter = 0
+		ListLimiter = 2000
 	end
 	
 	if (ShowLinks == nil) then
@@ -886,7 +886,7 @@ function GBLC:OnInitialize()
 	end
 	
 	if (StackItems == nil) then
-		StackItems = false
+		StackItems = true
 	end
 
 	if (sortMethod == nil) then
@@ -1445,16 +1445,21 @@ function GBLC:HandleChatCommand(input)
 
                         local stats = self:GetSuffixStats(item.suffixName, tonumber(item.suffix))
                         wowheadlink = GBLC:WowheadLink(item.itemID)
-
                         local statsString = stats and stats ~= "" and ' "' .. stats .. '"' or ''
-                        local itemLine = '[' .. item.name .. '](' .. wowheadlink .. statsString .. ') (' .. finalCount .. ') - ' .. item.minLevel .. ' ' .. item.rarity .. ' ' .. item.subType .. (item.equipLoc ~= '' and ' ' or '') .. item.equipLoc
+                        if ShowLinks then
+                            local statsString = stats and stats ~= "" and ' "' .. stats .. '"' or ''
+                            nameString = '[[' .. item.name .. ']](<' .. wowheadlink .. '>' .. statsString .. ') '
+                        else
+                            local statsString = stats and stats ~= "" and '<' .. stats .. '> ' or ''
+                            nameString = '[' .. item.name .. '] ' .. statsString
+                        end
+
+                        local itemLine = nameString .. '(' .. finalCount .. ') -' .. (item.minLevel <= 1 and ' ' or ' ' .. item.minLevel .. ' ') .. item.rarity .. ((item.iType == "Trade Goods" or item.iType == "Consumable") and '' or ' ' .. item.subType) .. ((item.equipLoc ~= '' and item.equipLoc ~= 'Bag') and ' ' .. item.equipLoc or '')
                         if UseCSV then
                             itemLine = item.name .. ',' .. finalCount .. ',' .. wowheadlink .. ',' .. item.minLevel .. ',' .. item.rarity .. ',' .. item.subType .. ',' .. item.equipLoc
                         end
                         if exportLength + string.len(itemLine) > ListLimiter and not UseCSV then
-                            print('exportLength pre-newline: ' .. exportLength .. ', exportLength post-newline: ' .. exportLength + string.len(itemLine))
                             GBLC:AddLine('--LIST CONTINUED--')
---                             exportLength = string.len('--LIST CONTINUED--')
                             exportLength = 0
                         end
                         GBLC:AddLine(itemLine)
@@ -1467,9 +1472,16 @@ function GBLC:HandleChatCommand(input)
             for _, item in ipairs(bagItems) do
                 local stats = self:GetSuffixStats(item.suffixName, tonumber(item.suffix))
                 wowheadlink = GBLC:WowheadLink(item.itemID)
-
                 local statsString = item.stats and item.stats ~= "" and ' "' .. item.stats .. '"' or ''
-                local itemLine = '[' .. item.name .. '](' .. wowheadlink .. statsString .. ') (' .. finalCount .. ') - ' .. item.minLevel .. ' ' .. item.rarity .. ' ' .. item.subType .. (item.equipLoc ~= '' and ' ' or '') .. item.equipLoc
+                if ShowLinks then
+                    local statsString = stats and stats ~= "" and ' "' .. stats .. '"' or ''
+                    nameString = '[[' .. item.name .. ']](<' .. wowheadlink .. '>' .. statsString .. ') '
+                else
+                    local statsString = stats and stats ~= "" and '<' .. stats .. '> ' or ''
+                    nameString = '[' .. item.name .. '] ' .. statsString
+                end
+
+                local itemLine = nameString .. '(' .. finalCount .. ') -' .. (item.minLevel <= 1 and ' ' or ' ' .. item.minLevel .. ' ') ..  item.rarity .. ((item.iType == "Trade Goods" or item.iType == "Consumable") and '' or ' ' .. item.subType) .. ((item.equipLoc ~= '' and item.equipLoc ~= 'Bag') and ' ' .. item.equipLoc or '')
                 if UseCSV then
                     itemLine = item.name .. ',' .. finalCount .. ',' .. wowheadlink .. ',' .. item.minLevel .. ',' .. item.rarity .. ',' .. item.subType .. ',' .. item.equipLoc
                 end
@@ -1477,7 +1489,6 @@ function GBLC:HandleChatCommand(input)
                 exportLength = exportLength + string.len(itemLine) + 1
                 if exportLength > ListLimiter and not UseCSV then
                     GBLC:AddLine('--LIST CONTINUED--')
---                     exportLength = string.len('--LIST CONTINUED--')
                     exportLength = 0
                 end
             end
@@ -1492,7 +1503,7 @@ function GBLC:HandleChatCommand(input)
 		
 		if enumber > 0 then
 
-			GBLC:AddLine('\nExcluded items')
+			GBLC:AddLine('\nExcluded items:')
 			exportLength = 0
 			local eic = 0
 			local excludeTable = {}
@@ -1505,7 +1516,7 @@ function GBLC:HandleChatCommand(input)
 				wowheadlink = GBLC:WowheadLink(eitemID)
 
 				if not UseCSV then
-					excludeTable[eic] = sName .. ' (' .. ecount .. ')' .. wowheadlink
+					excludeTable[eic] = sName .. ' (' .. ecount .. ') ' .. wowheadlink
 				else
 					excludeTable[eic] = sName .. ',' .. ecount .. ',' .. wowheadlink ..','
 				end
