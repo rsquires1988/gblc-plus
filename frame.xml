@@ -1,0 +1,74 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\FrameXML\UI.xsd">
+
+    <Frame name="gblcFrame" parent="UIParent" movable="true" enableMouse="true" hidden="true" inherits="BackdropTemplate" frameStrata="HIGH">
+        <Size>
+            <AbsDimension x="660" y="450" />
+        </Size>
+        <Anchors>
+            <Anchor point="CENTER" />
+        </Anchors>
+        <Scripts>
+            <!-- Initialize the frame -->
+            <OnLoad>
+                self:Hide(); -- Ensure the frame is hidden on load
+            </OnLoad>
+            <!-- Reset the backdrop explicitly -->
+            <OnShow>
+                self:SetBackdrop(nil); -- Clear any existing backdrop to avoid stacking
+                self:SetBackdrop({
+                    bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+                    edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+                    tile = true,
+                    tileSize = 32,
+                    edgeSize = 32,
+                    insets = { left = 11, right = 12, top = 12, bottom = 11 }
+                });
+                self:SetBackdropColor(0, 0, 0, 1); -- Reset transparency explicitly
+            </OnShow>
+        </Scripts>
+        <Frames>
+            <Button name="gblcFrameButton" text="Close" inherits="GameMenuButtonTemplate">
+                <Anchors>
+                    <Anchor point="BOTTOM" relativeTo="gblcFrame" relativePoint="BOTTOM">
+                        <Offset>
+                            <AbsDimension x="0" y="20" />
+                        </Offset>
+                    </Anchor>
+                </Anchors>
+                <Scripts>
+                    <!-- Close the frame -->
+                    <OnClick>
+                        self:GetParent():Hide();
+                    </OnClick>
+                </Scripts>
+            </Button>
+            <ScrollFrame name="gblcFrameScroll" inherits="UIPanelScrollFrameTemplate" toplevel="true">
+                <Anchors>
+                    <Anchor point="TOP">
+                        <Offset>
+                            <AbsDimension x="0" y="-30" />
+                        </Offset>
+                    </Anchor>
+                    <Anchor point="BOTTOM" relativeTo="gblcFrameButton" relativePoint="BOTTOM">
+                        <Offset>
+                            <AbsDimension x="10" y="30" />
+                        </Offset>
+                    </Anchor>
+                    <Anchor point="RIGHT">
+                        <Offset>
+                            <AbsDimension x="-40" />
+                        </Offset>
+                    </Anchor>
+                </Anchors>
+                <ScrollChild>
+                    <EditBox name="gblcFrameScrollText" letters="99999" multiLine="true" autoFocus="true" enableMouse="true">
+                        <Size>
+                            <AbsDimension x="660" y="400" />
+                        </Size>
+                        <FontString inherits="ChatFontNormal" />
+                    </EditBox>
+                </ScrollChild>
+            </ScrollFrame>
+        </Frames>
+    </Frame>
+</Ui>
