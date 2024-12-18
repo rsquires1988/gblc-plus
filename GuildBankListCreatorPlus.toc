@@ -1,8 +1,8 @@
-## Interface: 11500
+## Interface: 11505
 ## Title: GuildBankListCreatorPlus
 ## Notes: Constructs a copyable list of inventory and Wowhead links
-## Author: Tyrrhenus of Mirage Raceway, SirSquirrels
-## Version: 0.5b
+## Author: Tyrrhenus of Mirage Raceway, Swats of Crusader Strike-US (SoD)
+## Version: 0.62
 ## SavedVariables: GuildBankListCreatorDb ListLimiter ShowLinks StackItems UseCSV ExcludeList
 
 libs\LibStub\LibStub.lua

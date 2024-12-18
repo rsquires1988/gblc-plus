@@ -1407,9 +1407,9 @@ function GBLC:HandleChatCommand(input)
         local gametimehours, gametimeminutes = GetGameTime()
         local texthours = string.format("%02d", gametimehours)
         local textminutes = string.format("%02d", gametimeminutes)
-    
+
         GBLC:ClearFrameText()
-    
+
         if not UseCSV then
             local metadataLines = 'Bank list updated on ' .. date("%m/%d/%Y ") .. texthours .. ':' .. textminutes .. ' server time\nCharacter: ' .. UnitName('player') .. '\nGold: ' .. moneystring .. '\n'
             GBLC:AddLine(metadataLines)
@@ -1417,7 +1417,7 @@ function GBLC:HandleChatCommand(input)
         else
             GBLC:AddLine(date("%m/%d/%Y") .. ',' .. texthours .. ':' .. textminutes .. ',' .. UnitName('player') .. ',' .. moneystring)
         end
-    
+
         local categoryDisplayName = {
             Equipment = "Equipment",
             Consumables = "Consumables",
@@ -1426,23 +1426,11 @@ function GBLC:HandleChatCommand(input)
             Weapons = "Weapons",
             Other = "Other"
         }
-    
+
         local categoryOrder = {"Weapons", "Armor", "TradeGoods", "Recipes", "Consumables", "Other"}
-    
-        -- Filter out excluded items from bagItems
-        local filteredBagItems = {}
-        for _, item in ipairs(bagItems) do
-            if not ExcludeList[item.itemID] then
-                table.insert(filteredBagItems, item)
-                -- GBLC:Print(item.name)
-            -- DEBUG
-            else
-                GBLC:Print("Excluded item found")
-            end
-        end
-    
+
         if categorize then
-            local sortedCategorizedItems = GBLC:SortAndCategorizeItems(filteredBagItems, sortMethod, categorize)
+            local sortedCategorizedItems = GBLC:SortAndCategorizeItems(bagItems, sortMethod, categorize)
             for _, category in ipairs(categoryOrder) do
                 local items = sortedCategorizedItems[category]
                 if items then
@@ -1453,8 +1441,8 @@ function GBLC:HandleChatCommand(input)
                         exportLength = exportLength + string.len(categoryLine) + 1
                     end
                     for _, item in ipairs(items) do
-                        local finalCount = item.count
-    
+                        local finalCount = ExcludeList[item.itemID] and item.count - ExcludeList[item.itemID] or item.count
+
                         local stats = self:GetSuffixStats(item.suffixName, tonumber(item.suffix))
                         wowheadlink = GBLC:WowheadLink(item.itemID)
                         local statsString = stats and stats ~= "" and ' "' .. stats .. '"' or ''
@@ -1465,7 +1453,7 @@ function GBLC:HandleChatCommand(input)
                             local statsString = stats and stats ~= "" and '<' .. stats .. '> ' or ''
                             nameString = '[' .. item.name .. '] ' .. statsString
                         end
-    
+
                         local itemLine = nameString .. '(' .. finalCount .. ') -' .. (item.minLevel <= 1 and ' ' or ' ' .. item.minLevel .. ' ') .. item.rarity .. ((item.iType == "Trade Goods" or item.iType == "Consumable") and '' or ' ' .. item.subType) .. ((item.equipLoc ~= '' and item.equipLoc ~= 'Bag') and ' ' .. item.equipLoc or '')
                         if UseCSV then
                             itemLine = item.name .. ',' .. finalCount .. ',' .. wowheadlink .. ',' .. item.minLevel .. ',' .. item.rarity .. ',' .. item.subType .. ',' .. item.equipLoc
@@ -1480,8 +1468,8 @@ function GBLC:HandleChatCommand(input)
                 end
             end
         else
-            table.sort(filteredBagItems, GBLC.sortFunctions[sortMethod])
-            for _, item in ipairs(filteredBagItems) do
+            table.sort(bagItems, GBLC.sortFunctions[sortMethod])
+            for _, item in ipairs(bagItems) do
                 local stats = self:GetSuffixStats(item.suffixName, tonumber(item.suffix))
                 wowheadlink = GBLC:WowheadLink(item.itemID)
                 local statsString = item.stats and item.stats ~= "" and ' "' .. item.stats .. '"' or ''
@@ -1492,10 +1480,10 @@ function GBLC:HandleChatCommand(input)
                     local statsString = stats and stats ~= "" and '<' .. stats .. '> ' or ''
                     nameString = '[' .. item.name .. '] ' .. statsString
                 end
-    
-                local itemLine = nameString .. '(' .. item.count .. ') -' .. (item.minLevel <= 1 and ' ' or ' ' .. item.minLevel .. ' ') ..  item.rarity .. ((item.iType == "Trade Goods" or item.iType == "Consumable") and '' or ' ' .. item.subType) .. ((item.equipLoc ~= '' and item.equipLoc ~= 'Bag') and ' ' .. item.equipLoc or '')
+
+                local itemLine = nameString .. '(' .. finalCount .. ') -' .. (item.minLevel <= 1 and ' ' or ' ' .. item.minLevel .. ' ') ..  item.rarity .. ((item.iType == "Trade Goods" or item.iType == "Consumable") and '' or ' ' .. item.subType) .. ((item.equipLoc ~= '' and item.equipLoc ~= 'Bag') and ' ' .. item.equipLoc or '')
                 if UseCSV then
-                    itemLine = item.name .. ',' .. item.count .. ',' .. wowheadlink .. ',' .. item.minLevel .. ',' .. item.rarity .. ',' .. item.subType .. ',' .. item.equipLoc
+                    itemLine = item.name .. ',' .. finalCount .. ',' .. wowheadlink .. ',' .. item.minLevel .. ',' .. item.rarity .. ',' .. item.subType .. ',' .. item.equipLoc
                 end
                 GBLC:AddLine(itemLine)
                 exportLength = exportLength + string.len(itemLine) + 1
@@ -1505,49 +1493,56 @@ function GBLC:HandleChatCommand(input)
                 end
             end
         end
-    
-        local enumber = 0
-        for eitemID, ecount in pairs(ExcludeList) do
-            if ((eitemID ~= nil) and (eitemID > 0)) then
-                enumber = enumber + 1
-            end
-        end
-        
-        if enumber > 0 then
-            GBLC:AddLine('\nExcluded items:')
-            exportLength = 0
-            local eic = 0
-            local excludeTable = {}
-    
-            for eitemID, ecount in pairs(ExcludeList) do
-                eic = eic + 1
-                local excludeString = ''
-                local sName = GBLC:GetItemName(eitemID)
-                wowheadlink = GBLC:WowheadLink(eitemID)
-    
-                if not UseCSV then
-                    excludeTable[eic] = sName .. ' (' .. ecount .. ') ' .. wowheadlink
-                else
-                    excludeTable[eic] = sName .. ',' .. ecount .. ',' .. wowheadlink .. ','
-                end
-            end
-            
-            table.sort(excludeTable)
-    
-            for i = 1, #excludeTable do
-                if ((ListLimiter > 0) and (not UseCSV)) then
-                    if ((exportLength + string.len(excludeTable[i])) > ListLimiter) then
-                        GBLC:AddLine('--LIST CONTINUED--')
-                        exportLength = 0
-                    end
-                end
-                GBLC:AddLine(excludeTable[i])
-            end
-        end
-    
-        GBLC:DisplayExportString(FrameText, true)
-        GBLC:ClearFrameText()
-    end    
+
+		local enumber = 0
+		for eitemID, ecount in pairs(ExcludeList) do
+			if ((eitemID ~= nil) and (eitemID > 0)) then
+				enumber = enumber + 1
+			end
+		end
+		
+		if enumber > 0 then
+
+			GBLC:AddLine('\nExcluded items:')
+			exportLength = 0
+			local eic = 0
+			local excludeTable = {}
+
+			for eitemID, ecount in pairs(ExcludeList) do
+
+				eic = eic +1
+				local excludeString = ''
+				local sName = GBLC:GetItemName(eitemID)
+				wowheadlink = GBLC:WowheadLink(eitemID)
+
+				if not UseCSV then
+					excludeTable[eic] = sName .. ' (' .. ecount .. ') ' .. wowheadlink
+				else
+					excludeTable[eic] = sName .. ',' .. ecount .. ',' .. wowheadlink ..','
+				end
+			end
+			
+			table.sort(excludeTable)
+
+			for i=1 , #excludeTable do
+			
+				if ((ListLimiter > 0) and (not UseCSV)) then
+					if ((exportLength + string.len(excludeTable[i])) > ListLimiter) then
+						GBLC:AddLine('--LIST CONTINUED--')
+						exportLength = 0
+					end
+				end
+
+				GBLC:AddLine(excludeTable[i])
+
+			end
+
+		end
+
+		GBLC:DisplayExportString(FrameText, true)
+		GBLC:ClearFrameText()
+
+	end
 
 end
 
@@ -1630,7 +1625,6 @@ function GBLC:ExcludeList(eitemID, ecount)
 
 	if (ExcludeList[eitemID] == nil) then
 		ExcludeList[eitemID] = ecount
-        GBLC:Print(ExcludeList[eitemID])
 	else
 		ExcludeList[eitemID] = ExcludeList[eitemID] + ecount
 	end
@@ -1768,42 +1762,38 @@ function GBLC:GetBagItems()
     return bagItems
 end
 
-function GBLC:DisplayExportString(str, highlight)
-    ---------------------------------------
-    -- Ensure the frame and background are properly reset
-    ---------------------------------------
+function GBLC:DisplayExportString(str,highlight)
 
-    -- Increased width
+	---------------------------------------
+	-- Display the main frame with list
+	---------------------------------------
+
+	-- Increased width
     local newWidth = 1000
+
     gblcFrame:SetWidth(newWidth)
 
-    -- Use an existing texture or create it if it doesn't exist
-    if not gblcFrame.backgroundTexture then
-        gblcFrame.backgroundTexture = gblcFrame:CreateTexture(nil, "BACKGROUND")
-        gblcFrame.backgroundTexture:SetAllPoints(gblcFrame)
-    end
+	-- Create and set the frame texture for background
+    local frameTexture = gblcFrame:CreateTexture()
+    frameTexture:SetAllPoints(gblcFrame)
+    frameTexture:SetColorTexture(0.1, 0.1, 0.1, 0.5) -- specified dark grey, transparent background
 
-    -- Set the texture's color
-    gblcFrame.backgroundTexture:SetColorTexture(0.1, 0.1, 0.1, 0.5) -- dark grey, transparent background
-
-    -- Show the frame and update content
-    gblcFrame:Show()
-    gblcFrameScroll:Show()
-    gblcFrameScrollText:Show()
-    gblcFrameScrollText:SetText(str)
-
-    if highlight then
-        gblcFrameScrollText:HighlightText()
-    end
-
-    -- Set script for the escape key
-    gblcFrameScrollText:SetScript('OnEscapePressed', function(self)
-        gblcFrame:Hide()
-    end)
-
-    -- Set script for the close button
-    gblcFrameButton:SetScript("OnClick", function(self)
-        gblcFrame:Hide()
-    end)
+	gblcFrame:Show();
+	gblcFrameScroll:Show()
+	gblcFrameScrollText:Show()
+	gblcFrameScrollText:SetText(str)
+	
+	if highlight then
+		gblcFrameScrollText:HighlightText()
+	end
+	
+	gblcFrameScrollText:SetScript('OnEscapePressed', function(self)
+		gblcFrame:Hide();
+		end
+	);
+	
+	gblcFrameButton:SetScript("OnClick", function(self)
+		gblcFrame:Hide();
+		end
+	);
 end
-
